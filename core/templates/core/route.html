@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CampusGo · Ruta calculada</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,9 +15,69 @@
 <link rel="stylesheet" href="{% static 'core/css/base.css' %}">
 <link rel="stylesheet" href="{% static 'core/css/components.css' %}">
 <link rel="stylesheet" href="{% static 'core/css/layout.css' %}">
-<link rel="stylesheet" href="{% static 'core/css/route.css' %}">
 <link rel="stylesheet" href="{% static 'core/css/shell.css' %}">
+<link rel="stylesheet" href="{% static 'core/css/route.css' %}">
+
+<style>
+.leaflet-map-route {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-xl);
+    min-height: 500px;
+    z-index: 1;
+}
+.leaflet-container { font-family: var(--font-family); }
+
+/* Pin origen (verde) */
+.pin-origen {
+    background: var(--color-primary);
+    width: 36px; height: 36px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    border: 3px solid white;
+    box-shadow: 0 4px 12px rgba(14, 158, 142, 0.5);
+    display: flex; align-items: center; justify-content: center;
+}
+.pin-origen i { transform: rotate(45deg); color: white; font-size: 16px; }
+
+/* Pin destino (naranja) */
+.pin-destino {
+    background: var(--color-secondary);
+    width: 36px; height: 36px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    border: 3px solid white;
+    box-shadow: 0 4px 12px rgba(232, 114, 28, 0.5);
+    display: flex; align-items: center; justify-content: center;
+}
+.pin-destino i { transform: rotate(45deg); color: white; font-size: 16px; }
+
+/* Estado de carga / error */
+.route-loading {
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+    padding: 60px 20px;
+    color: var(--color-text-muted);
+}
+.route-loading i { font-size: 32px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Banner Fase 1 / Beta */
+.beta-banner {
+    background: rgba(245, 197, 24, 0.12);
+    border: 1.5px solid rgba(245, 197, 24, 0.4);
+    color: #8a6b00;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 12px;
+}
+</style>
 </head>
+
 <body data-active="route">
 
 <div data-mount="proto-nav"></div>
@@ -28,7 +89,7 @@
         <header class="topbar">
             <button class="mobile-menu-toggle"><i class="bi bi-list"></i></button>
             <div class="topbar-left">
-                <button class="btn-icon" onclick="history.back()"><i class="bi bi-arrow-left"></i></button>
+                <a class="btn-icon" href="{% url 'core:map' %}"><i class="bi bi-arrow-left"></i></a>
                 <div>
                     <div class="topbar-title">Ruta hacia tu destino</div>
                     <div class="topbar-subtitle" id="topbarSubtitle">Selecciona origen y destino</div>
@@ -36,7 +97,9 @@
             </div>
             <div class="topbar-actions">
                 <button class="btn-icon" title="Compartir ruta"><i class="bi bi-share-fill"></i></button>
-                <button class="btn-icon" title="Guardar ruta"><i class="bi bi-bookmark"></i></button>
+                <a class="btn-action-primary" href="{% url 'core:map' %}">
+                    <i class="bi bi-map-fill"></i> Volver al mapa
+                </a>
             </div>
         </header>
 

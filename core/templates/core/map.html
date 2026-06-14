@@ -6,18 +6,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CampusGo · Mapa de ESCOM</title>
 
-<!-- Fuentes e iconos -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-<!-- 🗺️ Leaflet CSS (mapa real) -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin="">
 
-<!-- CSS modular del proyecto -->
 <link rel="stylesheet" href="{% static 'core/css/base.css' %}">
 <link rel="stylesheet" href="{% static 'core/css/components.css' %}">
 <link rel="stylesheet" href="{% static 'core/css/layout.css' %}">
@@ -25,7 +22,6 @@
 <link rel="stylesheet" href="{% static 'core/css/map.css' %}">
 
 <style>
-/* Ajustes para integrar Leaflet con el diseño */
 .leaflet-map {
     width: 100%;
     height: 100%;
@@ -33,22 +29,24 @@
     min-height: 500px;
     z-index: 1;
 }
-
 .leaflet-container { font-family: var(--font-family); }
 
-/* Pin personalizado */
 .custom-pin {
     background: var(--color-primary);
-    width: 36px;
-    height: 36px;
+    width: 36px; height: 36px;
     border-radius: 50% 50% 50% 0;
     transform: rotate(-45deg);
     border: 3px solid white;
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
 }
+.custom-pin i { transform: rotate(45deg); color: white; font-size: 16px; }
+.custom-pin.entrada     { background: var(--color-secondary); }
+.custom-pin.aula        { background: var(--color-primary); }
+.custom-pin.laboratorio { background: #6366f1; }
+.custom-pin.oficina     { background: var(--color-heading); }
+.custom-pin.servicio    { background: #f59e0b; }
+.custom-pin.bano        { background: #06b6d4; }
 
 .custom-pin i {
     transform: rotate(45deg);
@@ -66,14 +64,12 @@
 /* Pin del usuario (animado) */
 .user-pin {
     background: var(--color-info);
-    width: 22px;
-    height: 22px;
+    width: 22px; height: 22px;
     border-radius: 50%;
     border: 4px solid white;
     box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25), 0 4px 12px rgba(0,0,0,0.3);
     animation: pulse-user 2s infinite;
 }
-
 @keyframes pulse-user {
     0%, 100% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25), 0 4px 12px rgba(0,0,0,0.3); }
     50%      { box-shadow: 0 0 0 16px rgba(37, 99, 235, 0),    0 4px 12px rgba(0,0,0,0.3); }
@@ -84,77 +80,71 @@
     box-shadow: var(--shadow-lg) !important;
     padding: 4px !important;
 }
-
 .leaflet-popup-content {
     margin: 12px 16px !important;
     font-family: var(--font-family) !important;
     font-size: 13px !important;
     line-height: 1.5 !important;
 }
-
-.popup-title {
-    font-weight: 800;
-    color: var(--color-heading);
-    font-size: 14px;
-    margin-bottom: 4px;
+.popup-title { font-weight: 800; color: var(--color-heading); font-size: 14px; margin-bottom: 4px; }
+.popup-meta  { color: var(--color-text-muted); font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+.popup-link  {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--color-primary); font-weight: 800; font-size: 12px; text-decoration: none;
 }
-
-.popup-meta {
-    color: var(--color-text-muted);
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.popup-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--color-primary);
-    font-weight: 800;
-    font-size: 12px;
-    text-decoration: none;
-}
-
 .popup-link:hover { text-decoration: underline; }
 
-/* Banner de bienvenida */
 .welcome-banner {
     background: linear-gradient(135deg, var(--color-primary), #0a7a6f);
     color: white;
     padding: 14px 20px;
     border-radius: var(--radius-lg);
     margin-bottom: var(--space-md);
-    display: flex;
-    align-items: center;
-    gap: 14px;
+    display: flex; align-items: center; gap: 14px;
     animation: slide-in 0.4s ease;
 }
-
 @keyframes slide-in {
     from { opacity: 0; transform: translateY(-10px); }
     to   { opacity: 1; transform: translateY(0); }
 }
-
 .welcome-banner-content { flex: 1; }
 .welcome-banner-title { font-weight: 800; font-size: 15px; }
-.welcome-banner-text { font-size: 13px; opacity: 0.9; font-weight: 600; margin-top: 2px; }
+.welcome-banner-text  { font-size: 13px; opacity: 0.9; font-weight: 600; margin-top: 2px; }
 .welcome-banner-close {
-    background: rgba(255,255,255,0.2);
-    border: none;
-    color: white;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: rgba(255,255,255,0.2); border: none; color: white;
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
 }
 .welcome-banner-close:hover { background: rgba(255,255,255,0.3); }
 
 /* ============================================
-   🎯 PLANIFICADOR DE RUTA (solo si viene del QR)
+   STATS GRID: 6 categorías
+   ============================================ */
+.map-stats-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+}
+@media (max-width: 1200px) {
+    .map-stats-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+    .map-stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+.map-stat-card {
+    padding: 12px !important;
+    gap: 10px !important;
+}
+.map-stat-card .icon-box {
+    width: 38px !important; height: 38px !important;
+    font-size: 16px !important;
+}
+.map-stat-card-value { font-size: 18px !important; }
+.map-stat-card-label { font-size: 10px !important; letter-spacing: 0.3px !important; }
+
+/* ============================================
+   PLANIFICADOR DE RUTA
    ============================================ */
 .route-planner {
     background: linear-gradient(135deg, var(--color-primary), #0a7a6f);
@@ -163,64 +153,27 @@
     border-top: 1px solid var(--color-border);
     animation: slide-in 0.4s ease;
 }
-
-.route-planner-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
+.route-planner-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .route-planner-icon {
-    width: 32px;
-    height: 32px;
+    width: 32px; height: 32px;
     border-radius: var(--radius-sm);
     background: rgba(255, 255, 255, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
 }
-
-.route-planner-title {
-    font-size: 14px;
-    font-weight: 800;
-    line-height: 1.2;
-}
-
-.route-planner-subtitle {
-    font-size: 11px;
-    opacity: 0.85;
-    font-weight: 600;
-    margin-top: 2px;
-}
+.route-planner-title    { font-size: 14px; font-weight: 800; line-height: 1.2; }
+.route-planner-subtitle { font-size: 11px; opacity: 0.85; font-weight: 600; margin-top: 2px; }
 
 .route-origen-info {
     background: rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-md);
-    padding: 10px 12px;
-    margin-bottom: 10px;
+    padding: 10px 12px; margin-bottom: 10px;
     font-size: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    display: flex; align-items: center; gap: 8px;
 }
-
 .route-origen-info i { font-size: 14px; flex-shrink: 0; }
-
-.route-origen-label {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    opacity: 0.85;
-}
-
-.route-origen-name {
-    font-weight: 700;
-    margin-top: 1px;
-}
+.route-origen-label { font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; opacity: 0.85; }
+.route-origen-name  { font-weight: 700; margin-top: 1px; }
 
 .route-select {
     width: 100%;
@@ -240,12 +193,7 @@
     background-position: right 14px center;
     padding-right: 36px;
 }
-
-.route-select:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.4);
-}
-
+.route-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.4); }
 .route-select option:disabled { color: #999; }
 
 .btn-iniciar-ruta {
@@ -260,21 +208,10 @@
     font-weight: 800;
     cursor: pointer;
     transition: all var(--transition-base);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-
-.btn-iniciar-ruta:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.btn-iniciar-ruta:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
+.btn-iniciar-ruta:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
+.btn-iniciar-ruta:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
@@ -314,7 +251,6 @@
 
         <main class="page-content">
 
-            <!-- Banner de bienvenida (solo si viene del QR) -->
             <div id="welcome-banner" class="welcome-banner" style="display: none;">
                 <i class="bi bi-check-circle-fill" style="font-size: 28px;"></i>
                 <div class="welcome-banner-content">
@@ -334,7 +270,7 @@
                 <span class="current">ESCOM IPN · Mapa</span>
             </div>
 
-            <!-- Stats -->
+            <!-- ⭐ STATS: 6 categorías -->
             <div class="map-stats-row">
                 <div class="map-stat-card">
                     <div class="icon-box icon-box-secondary"><i class="bi bi-door-open-fill"></i></div>
@@ -358,17 +294,27 @@
                     </div>
                 </div>
                 <div class="map-stat-card">
-                    <div class="icon-box icon-box-dark"><i class="bi bi-building-fill"></i></div>
+                    <div class="icon-box" style="background: rgba(6, 182, 212, 0.1); color: #06b6d4;">
+                        <i class="bi bi-droplet-fill"></i>
+                    </div>
                     <div>
-                        <div class="map-stat-card-value" id="stat-total">—</div>
-                        <div class="map-stat-card-label">Total ubicaciones</div>
+                        <div class="map-stat-card-value" id="stat-banos">—</div>
+                        <div class="map-stat-card-label">Baños</div>
+                    </div>
+                </div>
+                <div class="map-stat-card">
+                    <div class="icon-box" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                        <i class="bi bi-cup-hot-fill"></i>
+                    </div>
+                    <div>
+                        <div class="map-stat-card-value" id="stat-servicios">—</div>
+                        <div class="map-stat-card-label">Servicios</div>
                     </div>
                 </div>
             </div>
 
             <div class="map-layout">
 
-                <!-- Panel lateral con resultados -->
                 <div class="map-sidebar-panel">
                     <div class="map-panel-header">
                         <div class="search-bar map-panel-search">
@@ -388,6 +334,9 @@
                             <span class="category-chip" data-filtro="bano">
                                 <i class="bi bi-droplet-fill"></i> Baños
                             </span>
+                            <span class="category-chip" data-filtro="bano">
+                                <i class="bi bi-droplet-fill"></i> Baños
+                            </span>
                             <span class="category-chip" data-filtro="servicio">
                                 <i class="bi bi-gear-fill"></i> Servicios
                             </span>
@@ -401,7 +350,6 @@
                         </div>
                     </div>
 
-                    <!-- 🎯 PLANIFICADOR DE RUTA (oculto, se muestra solo si viene del QR) -->
                     <div id="route-planner" class="route-planner" style="display: none;">
                         <div class="route-planner-header">
                             <div class="route-planner-icon">
@@ -432,7 +380,6 @@
                     </div>
                 </div>
 
-                <!-- Mapa Leaflet -->
                 <div class="map-main">
                     <div id="leaflet-map" class="leaflet-map"></div>
                 </div>
@@ -442,10 +389,27 @@
     </div>
 </div>
 
-<!-- 🗺️ Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
+
+<script>
+window.USER_DATA = {
+    is_authenticated: {{ request.user.is_authenticated|lower }},
+    is_admin: {{ request.user.is_superuser|lower }},
+    {% if request.user.is_authenticated and perfil %}
+        nombre_completo: "{{ perfil.nombre_completo }}",
+        rol: "{{ perfil.get_rol_display }}",
+        email: "{{ request.user.email }}",
+        initials: "{{ perfil.nombre_completo|truncatewords:2|join:''|slice:':2'|upper }}"
+    {% else %}
+        nombre_completo: "Invitado",
+        rol: "Invitado",
+        email: "",
+        initials: "IV"
+    {% endif %}
+};
+</script>
 
 <script src="{% static 'core/js/shell.js' %}"></script>
 
