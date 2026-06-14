@@ -56,11 +56,12 @@
     font-size: 16px;
 }
 
-.custom-pin.entrada      { background: var(--color-secondary); }
-.custom-pin.aula         { background: var(--color-primary); }
-.custom-pin.laboratorio  { background: #6366f1; }
-.custom-pin.oficina      { background: var(--color-heading); }
-.custom-pin.servicio     { background: #f59e0b; }
+.custom-pin.acceso     { background: var(--color-secondary); }
+.custom-pin.cafeteria  { background: #e8721c; }
+.custom-pin.bano       { background: #2563eb; }
+.custom-pin.servicio   { background: #f59e0b; }
+.custom-pin.academico  { background: var(--color-primary); }
+.custom-pin.area       { background: #16a34a; }
 
 /* Pin del usuario (animado) */
 .user-pin {
@@ -343,17 +344,17 @@
                     </div>
                 </div>
                 <div class="map-stat-card">
-                    <div class="icon-box"><i class="bi bi-mortarboard-fill"></i></div>
+                    <div class="icon-box icon-box-secondary"><i class="bi bi-cup-hot-fill"></i></div>
                     <div>
-                        <div class="map-stat-card-value" id="stat-aulas">—</div>
-                        <div class="map-stat-card-label">Aulas</div>
+                        <div class="map-stat-card-value" id="stat-cafeterias">—</div>
+                        <div class="map-stat-card-label">Cafeterías</div>
                     </div>
                 </div>
                 <div class="map-stat-card">
-                    <div class="icon-box icon-box-purple"><i class="bi bi-cpu-fill"></i></div>
+                    <div class="icon-box icon-box-purple"><i class="bi bi-droplet-fill"></i></div>
                     <div>
-                        <div class="map-stat-card-value" id="stat-labs">—</div>
-                        <div class="map-stat-card-label">Laboratorios</div>
+                        <div class="map-stat-card-value" id="stat-banos">—</div>
+                        <div class="map-stat-card-label">Baños</div>
                     </div>
                 </div>
                 <div class="map-stat-card">
@@ -378,17 +379,17 @@
                             <span class="category-chip active" data-filtro="todos">
                                 <i class="bi bi-grid-fill"></i> Todos
                             </span>
-                            <span class="category-chip" data-filtro="entrada">
+                            <span class="category-chip" data-filtro="acceso">
                                 <i class="bi bi-door-open-fill"></i> Entradas
                             </span>
-                            <span class="category-chip" data-filtro="aula">
-                                <i class="bi bi-mortarboard-fill"></i> Aulas
+                            <span class="category-chip" data-filtro="cafeteria">
+                                <i class="bi bi-cup-hot-fill"></i> Cafeterías
                             </span>
-                            <span class="category-chip" data-filtro="laboratorio">
-                                <i class="bi bi-cpu-fill"></i> Labs
+                            <span class="category-chip" data-filtro="bano">
+                                <i class="bi bi-droplet-fill"></i> Baños
                             </span>
                             <span class="category-chip" data-filtro="servicio">
-                                <i class="bi bi-cup-hot-fill"></i> Servicios
+                                <i class="bi bi-gear-fill"></i> Servicios
                             </span>
                         </div>
                     </div>
@@ -449,323 +450,278 @@
 <script src="{% static 'core/js/shell.js' %}"></script>
 
 <!-- 🎯 Lógica del mapa -->
+<script src="{% static 'core/js/nodes.js' %}"></script>
 <script>
 (function() {
     'use strict';
-
-    const CAMPUS_CODIGO = 'escom-ipn';
-    const API_URL = `/api/campus/${CAMPUS_CODIGO}/ubicaciones/`;
-    const RUTA_URL = `{% url 'core:route' %}`;  // URL de la pantalla de ruta
-
-    const ICONOS_TIPO = {
-        entrada:     'bi-door-open-fill',
-        aula:        'bi-mortarboard-fill',
-        laboratorio: 'bi-cpu-fill',
-        oficina:     'bi-building-fill',
-        servicio:    'bi-cup-hot-fill',
+    // --- Metadatos de ubicaciones (incrustado; antes places.js) ---
+    // Categorías/íconos. La data de coords/nombre sigue en nodes.js (no se duplica).
+    const PLACE_TIPOS = {
+        acceso:    { label: 'Acceso',     icon: 'bi-door-open-fill', pin: 'acceso',    box: 'secondary' },
+        cafeteria: { label: 'Cafetería',  icon: 'bi-cup-hot-fill',   pin: 'cafeteria', box: 'secondary' },
+        bano:      { label: 'Baño',       icon: 'bi-droplet-fill',   pin: 'bano',      box: '' },
+        servicio:  { label: 'Servicio',   icon: 'bi-gear-fill',      pin: 'servicio',  box: 'purple' },
+        academico: { label: 'Académico',  icon: 'bi-book-fill',      pin: 'academico', box: '' },
+        area:      { label: 'Área común', icon: 'bi-tree-fill',      pin: 'area',      box: 'dark' },
     };
 
+    const PLACE_META = {
+        entrada_principal:        { tipo: 'acceso',    icon: 'bi-door-open-fill',   zona: 'Entrada principal' },
+        salida_estacionamiento:   { tipo: 'acceso',    icon: 'bi-door-closed-fill', zona: 'Av. Juan de Dios Bátiz' },
+        salida_metro_poli:        { tipo: 'acceso',    icon: 'bi-door-closed-fill', zona: 'Metro Politécnico' },
+        auditorio:                { tipo: 'academico', icon: 'bi-easel-fill',       zona: 'Auditorio' },
+        biblioteca:               { tipo: 'academico', icon: 'bi-book-fill',        zona: 'Edif. de Gobierno' },
+        cafeteria_gestion:        { tipo: 'cafeteria', icon: 'bi-cup-hot-fill',     zona: 'Zona gestión' },
+        cafeteria_ia:             { tipo: 'cafeteria', icon: 'bi-cup-hot-fill',     zona: 'Zona IA' },
+        cafeteria_principal:      { tipo: 'cafeteria', icon: 'bi-cup-hot-fill',     zona: 'Zona principal' },
+        ventanillas_gestion:      { tipo: 'servicio',  icon: 'bi-window-fill',      zona: 'Gestión escolar' },
+        cajero:                   { tipo: 'servicio',  icon: 'bi-cash-coin',        zona: 'Zona principal' },
+        papeleria:                { tipo: 'servicio',  icon: 'bi-pencil-fill',      zona: 'Zona IA' },
+        explanada:                { tipo: 'area',      icon: 'bi-flag-fill',        zona: 'Explanada / Letras' },
+        palapas_gestion:          { tipo: 'area',      icon: 'bi-umbrella-fill',    zona: 'Zona gestión' },
+        palapas_ia:               { tipo: 'area',      icon: 'bi-umbrella-fill',    zona: 'Zona IA' },
+        cancha_basquet_principal: { tipo: 'area',      icon: 'bi-trophy-fill',      zona: 'Zona principal' },
+
+        bano_1:         { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona norte' },
+        bano_2:         { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona sur' },
+        bano_3_hombres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona centro' },
+        bano_4_hombres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona sur-oriente' },
+        bano_5_hombres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona IA' },
+        bano_5_mujeres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona IA' },
+        bano_6_hombres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona centro-sur' },
+        bano_6_mujeres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona centro-sur' },
+        bano_hombres_7: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Auditorio' },
+        bano_mujeres_7: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Auditorio' },
+    };
+
+    // Descripción genérica y honesta por categoría (no inventamos datos que no tenemos).
+    const TIPO_DESCRIPCION = {
+        acceso:    'Punto de acceso al campus de ESCOM IPN.',
+        cafeteria: 'Punto de venta de alimentos y bebidas dentro del campus de ESCOM IPN.',
+        bano:      'Servicio sanitario ubicado dentro del campus de ESCOM IPN.',
+        servicio:  'Servicio de apoyo a la comunidad de ESCOM IPN.',
+        academico: 'Espacio académico del campus de ESCOM IPN.',
+        area:      'Área común del campus de ESCOM IPN.',
+    };
+
+    // Construye el arreglo de ubicaciones combinando nodes.js + metadatos.
+    function getUbicaciones() {
+        return Object.keys(nodes).map(key => {
+            const n = nodes[key];
+            const meta = PLACE_META[key] || { tipo: 'servicio', icon: 'bi-geo-alt-fill', zona: '' };
+            const t = PLACE_TIPOS[meta.tipo] || PLACE_TIPOS.servicio;
+            return {
+                codigo:      key,
+                nombre:      n.nombre,
+                lat:         n.lat,
+                lng:         n.lng,
+                tipo:        meta.tipo,
+                tipo_label:  t.label,
+                icon:        meta.icon,
+                pinClase:    t.pin,
+                boxClase:    t.box,
+                zona:        meta.zona || '',
+                descripcion: TIPO_DESCRIPCION[meta.tipo] || '',
+                url_detalle: '/detalle/?lugar=' + key,
+            };
+        });
+    }
+
+    function getLugar(key) {
+        return getUbicaciones().find(u => u.codigo === key) || null;
+    }
+
+    // Centro del campus = centroide de todas las ubicaciones.
+    function campusCentro() {
+        const ks = Object.keys(nodes);
+        let la = 0, ln = 0;
+        ks.forEach(k => { la += nodes[k].lat; ln += nodes[k].lng; });
+        return [la / ks.length, ln / ks.length];
+    }
+
+
+
+    const RUTA_URL = '/ruta/';   // pantalla de ruta (si usas Django, cámbiala por {% url 'core:route' %})
+
     let mapa;
-    let marcadores = [];
     let ubicacionesData = [];
+    let marcadores = {};          // codigo -> { marcador, ubicacion }
+    let userMarker = null;
     let filtroActivo = 'todos';
     let filtroTexto = '';
-    let origenActual = null;  // Ubicación de la que viene el usuario (QR)
+    let origenActual = null;
 
-    // ============================================================
-    // ICONOS
-    // ============================================================
-    function crearIcono(tipo) {
-        const icono = ICONOS_TIPO[tipo] || 'bi-geo-alt-fill';
+    const TIPOS_BASE = ['acceso'];   // marcadores visibles por defecto (accesos)
+
+    function crearIcono(u) {
         return L.divIcon({
             className: '',
-            html: `<div class="custom-pin ${tipo}"><i class="bi ${icono}"></i></div>`,
-            iconSize: [36, 36],
-            iconAnchor: [18, 36],
-            popupAnchor: [0, -36],
+            html: `<div class="custom-pin ${u.pinClase}"><i class="bi ${u.icon}"></i></div>`,
+            iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -36],
         });
     }
 
     const ICONO_USUARIO = L.divIcon({
-        className: '',
-        html: '<div class="user-pin"></div>',
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
+        className: '', html: '<div class="user-pin"></div>',
+        iconSize: [22, 22], iconAnchor: [11, 11],
     });
 
-    // ============================================================
-    // MAPA
-    // ============================================================
-    function iniciarMapa(centro, zoom = 17) {
-        mapa = L.map('leaflet-map', { zoomControl: false }).setView(centro, zoom);
-
+    function iniciarMapa(centro, zoom) {
+        mapa = L.map('leaflet-map', { zoomControl: false }).setView(centro, zoom || 18);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             maxZoom: 19,
         }).addTo(mapa);
-
         L.control.zoom({ position: 'topright' }).addTo(mapa);
     }
 
-    // ============================================================
-    // RENDER MARCADORES
-    // ============================================================
-    function renderizarMarcadores(ubicaciones) {
-        marcadores.forEach(m => mapa.removeLayer(m.marcador));
-        marcadores = [];
-
-        ubicaciones.forEach(ubicacion => {
-            const marcador = L.marker([ubicacion.lat, ubicacion.lng], {
-                icon: crearIcono(ubicacion.tipo)
-            });
-
-            const popupHTML = `
-                <div class="popup-title">${ubicacion.nombre}</div>
-                <div class="popup-meta">
-                    ${ubicacion.tipo_label}
-                    ${ubicacion.edificio ? ' · ' + ubicacion.edificio : ''}
-                    ${ubicacion.piso > 0 ? ' · Piso ' + ubicacion.piso : ''}
-                </div>
-                <a href="${ubicacion.url_detalle}" class="popup-link">
-                    Ver detalles <i class="bi bi-arrow-right"></i>
-                </a>
-            `;
-            marcador.bindPopup(popupHTML);
-            marcador.addTo(mapa);
-            marcadores.push({ marcador, ubicacion });
-        });
+    // Crea (si no existe) el marcador de una ubicación
+    function asegurarMarcador(u) {
+        if (marcadores[u.codigo]) return marcadores[u.codigo].marcador;
+        const marcador = L.marker([u.lat, u.lng], { icon: crearIcono(u) });
+        marcador.bindPopup(`
+            <div class="popup-title">${u.nombre}</div>
+            <div class="popup-meta">${u.tipo_label}${u.zona ? ' · ' + u.zona : ''}</div>
+            <a href="${u.url_detalle}" class="popup-link">Ver detalles <i class="bi bi-arrow-right"></i></a>`);
+        marcador.addTo(mapa);
+        marcadores[u.codigo] = { marcador, ubicacion: u };
+        return marcador;
     }
 
-    // ============================================================
-    // RENDER LISTA
-    // ============================================================
-    function renderizarLista(ubicaciones) {
-        const contenedor = document.getElementById('lista-ubicaciones');
+    // Por defecto solo se muestran los accesos (entradas/salidas)
+    function renderMarcadoresBase() {
+        ubicacionesData.filter(u => TIPOS_BASE.includes(u.tipo)).forEach(asegurarMarcador);
+    }
 
+    // Al hacer clic en una ubicación de la lista, aparece su marcador
+    function mostrarEnMapa(codigo) {
+        const u = ubicacionesData.find(x => x.codigo === codigo);
+        if (!u) return;
+        asegurarMarcador(u);
+        mapa.flyTo([u.lat, u.lng], 19, { duration: 0.8 });
+        marcadores[codigo].marcador.openPopup();
+    }
+
+    function renderizarLista(ubicaciones) {
+        const cont = document.getElementById('lista-ubicaciones');
         if (ubicaciones.length === 0) {
-            contenedor.innerHTML = `
-                <div style="padding: 40px 20px; text-align: center; color: var(--color-text-muted);">
-                    <i class="bi bi-search" style="font-size: 24px;"></i>
-                    <p style="margin-top: 8px; font-size: 13px; font-weight: 600;">No se encontraron ubicaciones</p>
-                </div>
-            `;
+            cont.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--color-text-muted);">
+                <i class="bi bi-search" style="font-size:24px;"></i>
+                <p style="margin-top:8px;font-size:13px;font-weight:600;">No se encontraron ubicaciones</p></div>`;
             return;
         }
-
-        contenedor.innerHTML = ubicaciones.map(u => `
+        cont.innerHTML = ubicaciones.map(u => `
             <a class="map-result-item" href="${u.url_detalle}" data-codigo="${u.codigo}">
-                <div class="icon-box icon-box-${tipoClase(u.tipo)}">
-                    <i class="bi ${ICONOS_TIPO[u.tipo] || 'bi-geo-alt-fill'}"></i>
+                <div class="icon-box ${u.boxClase ? 'icon-box-' + u.boxClase : ''}">
+                    <i class="bi ${u.icon}"></i>
                 </div>
                 <div class="map-result-info">
                     <div class="map-result-name">${u.nombre}</div>
-                    <div class="map-result-meta">
-                        <span>${u.tipo_label}${u.edificio ? ' · ' + u.edificio : ''}</span>
-                    </div>
+                    <div class="map-result-meta"><span>${u.tipo_label}${u.zona ? ' · ' + u.zona : ''}</span></div>
                 </div>
-                <i class="bi bi-chevron-right" style="color: var(--color-text-muted);"></i>
-            </a>
-        `).join('');
+                <i class="bi bi-chevron-right" style="color:var(--color-text-muted);"></i>
+            </a>`).join('');
 
-        contenedor.querySelectorAll('.map-result-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                const codigo = item.dataset.codigo;
-                const data = marcadores.find(m => m.ubicacion.codigo === codigo);
-                if (data) {
-                    mapa.flyTo([data.ubicacion.lat, data.ubicacion.lng], 19, { duration: 0.8 });
-                    data.marcador.openPopup();
-                }
-            });
+        cont.querySelectorAll('.map-result-item').forEach(item => {
+            item.addEventListener('click', (e) => { e.preventDefault(); mostrarEnMapa(item.dataset.codigo); });
         });
     }
 
-    function tipoClase(tipo) {
-        const m = { entrada:'secondary', aula:'', laboratorio:'purple', oficina:'dark', servicio:'secondary' };
-        return m[tipo] || '';
+    function actualizarStats() {
+        const cuenta = tipo => ubicacionesData.filter(u => u.tipo === tipo).length;
+        document.getElementById('stat-entradas').textContent   = cuenta('acceso');
+        document.getElementById('stat-cafeterias').textContent = cuenta('cafeteria');
+        document.getElementById('stat-banos').textContent      = cuenta('bano');
+        document.getElementById('stat-total').textContent      = ubicacionesData.length;
     }
 
-    // ============================================================
-    // STATS
-    // ============================================================
-    function actualizarStats(ubicaciones) {
-        const cuenta = tipo => ubicaciones.filter(u => u.tipo === tipo).length;
-        document.getElementById('stat-entradas').textContent = cuenta('entrada');
-        document.getElementById('stat-aulas').textContent = cuenta('aula');
-        document.getElementById('stat-labs').textContent = cuenta('laboratorio');
-        document.getElementById('stat-total').textContent = ubicaciones.length;
-    }
-
-    // ============================================================
-    // FILTROS
-    // ============================================================
     function aplicarFiltros() {
-        let filtradas = ubicacionesData;
-
-        if (filtroActivo !== 'todos') {
-            filtradas = filtradas.filter(u => u.tipo === filtroActivo);
-        }
-
+        let f = ubicacionesData;
+        if (filtroActivo !== 'todos') f = f.filter(u => u.tipo === filtroActivo);
         if (filtroTexto.trim()) {
             const q = filtroTexto.toLowerCase().trim();
-            filtradas = filtradas.filter(u =>
-                u.nombre.toLowerCase().includes(q) ||
-                (u.edificio && u.edificio.toLowerCase().includes(q)) ||
-                u.tipo_label.toLowerCase().includes(q)
-            );
+            f = f.filter(u => u.nombre.toLowerCase().includes(q)
+                || (u.zona && u.zona.toLowerCase().includes(q))
+                || u.tipo_label.toLowerCase().includes(q));
         }
-
-        renderizarMarcadores(filtradas);
-        renderizarLista(filtradas);
+        renderizarLista(f);   // el filtro afecta solo la lista; los marcadores salen al hacer clic
     }
 
-    // ============================================================
-    // 🎯 PLANIFICADOR DE RUTA
-    // ============================================================
+    // PLANIFICADOR DE RUTA (verde) — se activa con ?desde=<key>
     function inicializarPlanificadorRuta() {
         if (!origenActual) return;
-
-        const planner = document.getElementById('route-planner');
-        const origenNombre = document.getElementById('origen-nombre');
         const select = document.getElementById('destino-select');
         const btn = document.getElementById('btn-iniciar-ruta');
+        document.getElementById('route-planner').style.display = 'block';
+        document.getElementById('origen-nombre').textContent = origenActual.nombre;
 
-        // Mostrar el panel
-        planner.style.display = 'block';
-
-        // Llenar el nombre del origen
-        origenNombre.textContent = origenActual.nombre;
-
-        // Llenar el dropdown con todas las ubicaciones EXCEPTO el origen
         const destinos = ubicacionesData.filter(u => u.codigo !== origenActual.codigo);
-
         select.innerHTML = '<option value="" disabled selected>Selecciona destino…</option>';
 
-        // Agrupar por tipo
-        const tiposVistos = new Set();
-        const tipoLabelMap = {};
-        destinos.forEach(d => {
-            tiposVistos.add(d.tipo);
-            tipoLabelMap[d.tipo] = d.tipo_label;
+        [...new Set(destinos.map(d => d.tipo))].forEach(tipo => {
+            const og = document.createElement('optgroup');
+            og.label = (PLACE_TIPOS[tipo] ? PLACE_TIPOS[tipo].label + 's' : tipo);
+            destinos.filter(d => d.tipo === tipo).forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.codigo; opt.textContent = d.nombre;
+                og.appendChild(opt);
+            });
+            select.appendChild(og);
         });
 
-        tiposVistos.forEach(tipo => {
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = tipoLabelMap[tipo] + 's';
-
-            destinos
-                .filter(d => d.tipo === tipo)
-                .forEach(d => {
-                    const opt = document.createElement('option');
-                    opt.value = d.codigo;
-                    opt.textContent = d.nombre;
-                    optgroup.appendChild(opt);
-                });
-
-            select.appendChild(optgroup);
-        });
-
-        // Habilitar el botón cuando seleccionen
-        select.addEventListener('change', () => {
-            btn.disabled = !select.value;
-        });
-
-        // Click del botón → navegar a la página de ruta
+        select.addEventListener('change', () => { btn.disabled = !select.value; });
         btn.addEventListener('click', () => {
             if (!select.value) return;
-            const url = `${RUTA_URL}?desde=${origenActual.codigo}&hasta=${select.value}`;
-            window.location.href = url;
+            window.location.href = `${RUTA_URL}?desde=${origenActual.codigo}&hasta=${select.value}`;
         });
     }
 
-    // ============================================================
-    // USUARIO DESDE QR
-    // ============================================================
-    function manejarUsuarioDesdeQR(ubicaciones) {
-        const params = new URLSearchParams(window.location.search);
-        const codigoDesde = params.get('desde');
-
-        if (!codigoDesde) return;
-
-        const origen = ubicaciones.find(u => u.codigo === codigoDesde);
+    // Origen actual (viene de detalle/QR con ?desde=<key>)
+    function manejarOrigen() {
+        const codigo = new URLSearchParams(window.location.search).get('desde');
+        if (!codigo) return;
+        const origen = ubicacionesData.find(u => u.codigo === codigo);
         if (!origen) return;
-
         origenActual = origen;
 
-        // Banner
-        const banner = document.getElementById('welcome-banner');
-        const texto = document.getElementById('welcome-text');
-        texto.innerHTML = `Estás en <strong>${origen.nombre}</strong>. Selecciona un destino abajo para iniciar tu ruta.`;
-        banner.style.display = 'flex';
+        document.getElementById('welcome-text').innerHTML =
+            `Estás en <strong>${origen.nombre}</strong>. Selecciona un destino abajo para iniciar tu ruta.`;
+        document.getElementById('welcome-banner').style.display = 'flex';
 
-        // Pin animado
-        const userMarker = L.marker([origen.lat, origen.lng], {
-            icon: ICONO_USUARIO,
-            zIndexOffset: 1000
-        });
-        userMarker.bindPopup(`
-            <div class="popup-title">📍 Tú estás aquí</div>
-            <div class="popup-meta">${origen.nombre}</div>
-        `);
+        userMarker = L.marker([origen.lat, origen.lng], { icon: ICONO_USUARIO, zIndexOffset: 1000 });
+        userMarker.bindPopup(`<div class="popup-title">📍 Tú estás aquí</div><div class="popup-meta">${origen.nombre}</div>`);
         userMarker.addTo(mapa);
-
-        // Centrar mapa
         mapa.flyTo([origen.lat, origen.lng], 18, { duration: 1.2 });
         setTimeout(() => userMarker.openPopup(), 1300);
 
-        // Activar el planificador de ruta
         inicializarPlanificadorRuta();
     }
 
-    // ============================================================
-    // CARGAR DATOS
-    // ============================================================
-    async function cargarUbicaciones() {
-        try {
-            const respuesta = await fetch(API_URL);
-            if (!respuesta.ok) throw new Error('Error al cargar ubicaciones');
-            const data = await respuesta.json();
-
-            ubicacionesData = data.ubicaciones;
-
-            iniciarMapa(data.campus.centro, 18);
-            actualizarStats(ubicacionesData);
-            aplicarFiltros();
-            manejarUsuarioDesdeQR(ubicacionesData);
-
-        } catch (error) {
-            console.error('Error:', error);
-            document.getElementById('lista-ubicaciones').innerHTML = `
-                <div style="padding: 40px 20px; text-align: center; color: var(--color-danger);">
-                    <i class="bi bi-exclamation-triangle-fill" style="font-size: 24px;"></i>
-                    <p style="margin-top: 8px; font-size: 13px; font-weight: 600;">Error al cargar el mapa</p>
-                </div>
-            `;
-        }
+    function init() {
+        ubicacionesData = getUbicaciones();
+        iniciarMapa(campusCentro(), 18);
+        actualizarStats();
+        renderMarcadoresBase();
+        aplicarFiltros();
+        manejarOrigen();
     }
 
-    // ============================================================
-    // EVENTOS
-    // ============================================================
     document.addEventListener('DOMContentLoaded', () => {
-        cargarUbicaciones();
+        init();
 
         document.querySelectorAll('#categorias-filtros .category-chip').forEach(chip => {
             chip.addEventListener('click', () => {
-                document.querySelectorAll('#categorias-filtros .category-chip')
-                    .forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('#categorias-filtros .category-chip').forEach(c => c.classList.remove('active'));
                 chip.classList.add('active');
                 filtroActivo = chip.dataset.filtro;
                 aplicarFiltros();
             });
         });
-
         document.getElementById('filter-input').addEventListener('input', (e) => {
-            filtroTexto = e.target.value;
-            aplicarFiltros();
+            filtroTexto = e.target.value; aplicarFiltros();
         });
-
-        document.getElementById('search-input').addEventListener('input', (e) => {
+        const search = document.getElementById('search-input');
+        if (search) search.addEventListener('input', (e) => {
             filtroTexto = e.target.value;
             document.getElementById('filter-input').value = e.target.value;
             aplicarFiltros();

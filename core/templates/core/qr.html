@@ -14,6 +14,17 @@
 <link rel="stylesheet" href="{% static 'core/css/layout.css' %}">
 <link rel="stylesheet" href="{% static 'core/css/qr.css' %}">
 <link rel="stylesheet" href="{% static 'core/css/shell.css' %}">
+<style>
+  .qr-viewer { position: relative; overflow: hidden; }
+  #qrVideo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; background:#0b1419; }
+  #qrCanvas { display:none; }
+  .qr-camera-bg { z-index:0; }
+  .qr-frame, .qr-overlay-text, .qr-status-badge { z-index:2; }
+  .qr-manual-select { width:100%; padding:10px 12px; border:1.5px solid var(--color-border); border-radius:var(--radius-md);
+    font-family:inherit; font-size:var(--font-size-small); font-weight:var(--font-weight-semibold); color:var(--color-heading);
+    background:var(--color-white); cursor:pointer; }
+  .qr-manual-select:focus { outline:none; border-color:var(--color-primary); box-shadow:0 0 0 3px var(--color-primary-soft); }
+</style>
 </head>
 <body data-active="qr">
 
@@ -35,17 +46,17 @@
                 </div>
             </div>
             <div class="topbar-actions">
-                <button class="btn-icon" title="Linterna"><i class="bi bi-lightbulb-fill"></i></button>
-                <button class="btn-icon" title="Cambiar cámara"><i class="bi bi-arrow-repeat"></i></button>
+                <button class="btn-icon" id="qrTorch" title="Linterna"><i class="bi bi-lightbulb-fill"></i></button>
+                <button class="btn-icon" id="qrSwitch" title="Cambiar cámara"><i class="bi bi-arrow-repeat"></i></button>
             </div>
         </header>
 
         <main class="page-content">
 
             <div class="breadcrumbs">
-                <a href="campus.html">Campus</a>
+                <a href="/campus/">Campus</a>
                 <span class="separator"><i class="bi bi-chevron-right"></i></span>
-                <a href="map.html">UAM Azcapotzalco</a>
+                <a href="/mapa/">ESCOM IPN</a>
                 <span class="separator"><i class="bi bi-chevron-right"></i></span>
                 <span class="current">Escáner QR</span>
             </div>
@@ -55,10 +66,12 @@
                 <!-- Visor de cámara -->
                 <div class="qr-viewer">
                     <div class="qr-camera-bg"></div>
+                    <video id="qrVideo" autoplay muted playsinline></video>
+                    <canvas id="qrCanvas"></canvas>
 
-                    <div class="qr-status-badge">
-                        <span class="qr-status-dot"></span>
-                        Cámara activa
+                    <div class="qr-status-badge" id="qrStatus">
+                        <span class="qr-status-dot" id="qrStatusDot"></span>
+                        <span id="qrStatusText">Iniciando cámara…</span>
                     </div>
 
                     <div class="qr-frame">
@@ -67,8 +80,8 @@
                     </div>
 
                     <div class="qr-overlay-text">
-                        <div class="qr-overlay-title">Apunta al código QR</div>
-                        <div class="qr-overlay-subtitle">Mantén el código dentro del recuadro hasta detectarlo</div>
+                        <div class="qr-overlay-title" id="qrOverlayTitle">Apunta al código QR</div>
+                        <div class="qr-overlay-subtitle" id="qrOverlaySubtitle">Mantén el código dentro del recuadro hasta detectarlo</div>
                     </div>
                 </div>
 
@@ -129,32 +142,7 @@
                             </div>
                         </div>
 
-                        <div class="qr-recent-list">
-                            <a class="qr-recent-item" href="detail.html">
-                                <div class="icon-box"><i class="bi bi-cpu-fill"></i></div>
-                                <div class="qr-recent-info">
-                                    <div class="qr-recent-name">Lab. Cómputo H-201</div>
-                                    <div class="qr-recent-time">Hoy · 9:32 AM</div>
-                                </div>
-                                <i class="bi bi-arrow-up-right text-primary"></i>
-                            </a>
-                            <a class="qr-recent-item" href="detail.html">
-                                <div class="icon-box icon-box-secondary"><i class="bi bi-book-fill"></i></div>
-                                <div class="qr-recent-info">
-                                    <div class="qr-recent-name">Biblioteca Central</div>
-                                    <div class="qr-recent-time">Ayer · 2:15 PM</div>
-                                </div>
-                                <i class="bi bi-arrow-up-right text-primary"></i>
-                            </a>
-                            <a class="qr-recent-item" href="detail.html">
-                                <div class="icon-box icon-box-purple"><i class="bi bi-cup-hot-fill"></i></div>
-                                <div class="qr-recent-info">
-                                    <div class="qr-recent-name">Cafetería Edif. C</div>
-                                    <div class="qr-recent-time">Lunes · 1:00 PM</div>
-                                </div>
-                                <i class="bi bi-arrow-up-right text-primary"></i>
-                            </a>
-                        </div>
+                        <div class="qr-recent-list" id="qrRecentList"></div>
                     </div>
 
                     <!-- Alternativa -->
@@ -168,7 +156,10 @@
                         <p class="qr-info-card-text" style="margin-bottom:14px;">
                             Si no tienes un código QR cerca, puedes seleccionar tu campus manualmente y empezar a navegar.
                         </p>
-                        <button class="btn-action-secondary" style="width:100%; justify-content:center;" onclick="window.location='campus.html'">
+                        <select id="qrManualSelect" class="qr-manual-select">
+                            <option value="">Elegir una ubicación…</option>
+                        </select>
+                        <button class="btn-action-secondary" style="width:100%; justify-content:center; margin-top:10px;" onclick="window.location='/campus/'">
                             <i class="bi bi-buildings"></i> Elegir campus manualmente
                         </button>
                     </div>
@@ -180,6 +171,251 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="{% static 'core/js/nodes.js' %}"></script>
+<script>
+(function () {
+    'use strict';
+
+    // --- Metadatos de ubicaciones (incrustado; mismas categorías que mapa/detalle) ---
+    const PLACE_TIPOS = {
+        acceso:    { label: 'Acceso',     icon: 'bi-door-open-fill', pin: 'acceso',    box: 'secondary' },
+        cafeteria: { label: 'Cafetería',  icon: 'bi-cup-hot-fill',   pin: 'cafeteria', box: 'secondary' },
+        bano:      { label: 'Baño',       icon: 'bi-droplet-fill',   pin: 'bano',      box: '' },
+        servicio:  { label: 'Servicio',   icon: 'bi-gear-fill',      pin: 'servicio',  box: 'purple' },
+        academico: { label: 'Académico',  icon: 'bi-book-fill',      pin: 'academico', box: '' },
+        area:      { label: 'Área común', icon: 'bi-tree-fill',      pin: 'area',      box: 'dark' },
+    };
+
+    const PLACE_META = {
+        entrada_principal:        { tipo: 'acceso',    icon: 'bi-door-open-fill',   zona: 'Entrada principal' },
+        salida_estacionamiento:   { tipo: 'acceso',    icon: 'bi-door-closed-fill', zona: 'Av. Juan de Dios Bátiz' },
+        salida_metro_poli:        { tipo: 'acceso',    icon: 'bi-door-closed-fill', zona: 'Metro Politécnico' },
+        auditorio:                { tipo: 'academico', icon: 'bi-easel-fill',       zona: 'Auditorio' },
+        biblioteca:               { tipo: 'academico', icon: 'bi-book-fill',        zona: 'Edif. de Gobierno' },
+        cafeteria_gestion:        { tipo: 'cafeteria', icon: 'bi-cup-hot-fill',     zona: 'Zona gestión' },
+        cafeteria_ia:             { tipo: 'cafeteria', icon: 'bi-cup-hot-fill',     zona: 'Zona IA' },
+        cafeteria_principal:      { tipo: 'cafeteria', icon: 'bi-cup-hot-fill',     zona: 'Zona principal' },
+        ventanillas_gestion:      { tipo: 'servicio',  icon: 'bi-window-fill',      zona: 'Gestión escolar' },
+        cajero:                   { tipo: 'servicio',  icon: 'bi-cash-coin',        zona: 'Zona principal' },
+        papeleria:                { tipo: 'servicio',  icon: 'bi-pencil-fill',      zona: 'Zona IA' },
+        explanada:                { tipo: 'area',      icon: 'bi-flag-fill',        zona: 'Explanada / Letras' },
+        palapas_gestion:          { tipo: 'area',      icon: 'bi-umbrella-fill',    zona: 'Zona gestión' },
+        palapas_ia:               { tipo: 'area',      icon: 'bi-umbrella-fill',    zona: 'Zona IA' },
+        cancha_basquet_principal: { tipo: 'area',      icon: 'bi-trophy-fill',      zona: 'Zona principal' },
+
+        bano_1:         { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona norte' },
+        bano_2:         { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona sur' },
+        bano_3_hombres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona centro' },
+        bano_4_hombres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona sur-oriente' },
+        bano_5_hombres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona IA' },
+        bano_5_mujeres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona IA' },
+        bano_6_hombres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona centro-sur' },
+        bano_6_mujeres: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Zona centro-sur' },
+        bano_hombres_7: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Auditorio' },
+        bano_mujeres_7: { tipo: 'bano', icon: 'bi-droplet-fill', zona: 'Auditorio' },
+    };
+
+    // Descripción genérica y honesta por categoría (no inventamos datos que no tenemos).
+    const TIPO_DESCRIPCION = {
+        acceso:    'Punto de acceso al campus de ESCOM IPN.',
+        cafeteria: 'Punto de venta de alimentos y bebidas dentro del campus de ESCOM IPN.',
+        bano:      'Servicio sanitario ubicado dentro del campus de ESCOM IPN.',
+        servicio:  'Servicio de apoyo a la comunidad de ESCOM IPN.',
+        academico: 'Espacio académico del campus de ESCOM IPN.',
+        area:      'Área común del campus de ESCOM IPN.',
+    };
+
+    // Construye el arreglo de ubicaciones combinando nodes.js + metadatos.
+    function getUbicaciones() {
+        return Object.keys(nodes).map(key => {
+            const n = nodes[key];
+            const meta = PLACE_META[key] || { tipo: 'servicio', icon: 'bi-geo-alt-fill', zona: '' };
+            const t = PLACE_TIPOS[meta.tipo] || PLACE_TIPOS.servicio;
+            return {
+                codigo:      key,
+                nombre:      n.nombre,
+                lat:         n.lat,
+                lng:         n.lng,
+                tipo:        meta.tipo,
+                tipo_label:  t.label,
+                icon:        meta.icon,
+                pinClase:    t.pin,
+                boxClase:    t.box,
+                zona:        meta.zona || '',
+                descripcion: TIPO_DESCRIPCION[meta.tipo] || '',
+                url_detalle: '/detalle/?lugar=' + key,
+            };
+        });
+    }
+
+    function getLugar(key) {
+        return getUbicaciones().find(u => u.codigo === key) || null;
+    }
+
+    // Centro del campus = centroide de todas las ubicaciones.
+    function campusCentro() {
+        const ks = Object.keys(nodes);
+        let la = 0, ln = 0;
+        ks.forEach(k => { la += nodes[k].lat; ln += nodes[k].lng; });
+        return [la / ks.length, ln / ks.length];
+    }
+
+    // ====================== LECTOR QR ======================
+    const MAPA_URL = '/mapa/';                 // tras escanear: mapa con el lugar como origen
+    const RECENT_KEY = 'campusgo_qr_recientes';
+
+    const video    = document.getElementById('qrVideo');
+    const canvas   = document.getElementById('qrCanvas');
+    const ctx      = canvas.getContext('2d', { willReadFrequently: true });
+    const sText    = document.getElementById('qrStatusText');
+    const sDot     = document.getElementById('qrStatusDot');
+    const oTitle   = document.getElementById('qrOverlayTitle');
+    const oSub     = document.getElementById('qrOverlaySubtitle');
+    const torchBtn = document.getElementById('qrTorch');
+    const switchBtn= document.getElementById('qrSwitch');
+    const manualSel= document.getElementById('qrManualSelect');
+    const recentBox= document.getElementById('qrRecentList');
+
+    let stream=null, track=null, facing='environment', scanning=false, torchOn=false, rafId=null;
+
+    function setStatus(txt, color){ if(sText) sText.textContent=txt; if(sDot && color) sDot.style.background=color; }
+    function setOverlay(t,sub){ if(oTitle) oTitle.textContent=t; if(oSub) oSub.textContent=sub; }
+
+    // Resuelve la key del lugar a partir del contenido del QR (key, URL o nombre).
+    function resolverKey(raw){
+        if(!raw) return null;
+        const t=String(raw).trim();
+        if(nodes[t]) return t;
+        let m=t.match(/\/(?:qr|ubicacion)\/([^\/?#]+)/i);
+        if(m && nodes[decodeURIComponent(m[1])]) return decodeURIComponent(m[1]);
+        m=t.match(/[?&](?:lugar|desde|hasta|codigo)=([^&#]+)/i);
+        if(m && nodes[decodeURIComponent(m[1])]) return decodeURIComponent(m[1]);
+        for(const k in nodes) if(nodes[k].nombre===t) return k;
+        try{ const u=new URL(t, window.location.origin);
+             const seg=u.pathname.split('/').filter(Boolean).pop();
+             if(seg && nodes[decodeURIComponent(seg)]) return decodeURIComponent(seg);
+        }catch(e){}
+        return null;
+    }
+
+    function guardarReciente(key){
+        try{ let a=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');
+             a=a.filter(x=>x.key!==key); a.unshift({key,ts:Date.now()}); a=a.slice(0,5);
+             localStorage.setItem(RECENT_KEY, JSON.stringify(a)); }catch(e){}
+    }
+    function tiempoRel(ts){
+        const d=Math.floor((Date.now()-ts)/1000);
+        if(d<60) return 'hace un momento';
+        if(d<3600) return 'hace '+Math.floor(d/60)+' min';
+        if(d<86400) return 'hace '+Math.floor(d/3600)+' h';
+        return 'hace '+Math.floor(d/86400)+' d';
+    }
+    function renderRecientes(){
+        if(!recentBox) return;
+        let a=[]; try{ a=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]'); }catch(e){}
+        if(!a.length){ recentBox.innerHTML='<div class="qr-step-desc" style="padding:6px 2px;">Aún no has escaneado ningún código.</div>'; return; }
+        recentBox.innerHTML=a.map(r=>{
+            const l=getLugar(r.key); if(!l) return '';
+            const box=l.boxClase? 'icon-box-'+l.boxClase : '';
+            return '<a class="qr-recent-item" href="'+MAPA_URL+'?desde='+r.key+'">'
+                 + '<div class="icon-box '+box+'"><i class="bi '+l.icon+'"></i></div>'
+                 + '<div class="qr-recent-info"><div class="qr-recent-name">'+l.nombre+'</div>'
+                 + '<div class="qr-recent-time">'+tiempoRel(r.ts)+'</div></div>'
+                 + '<i class="bi bi-arrow-up-right text-primary"></i></a>';
+        }).join('');
+    }
+    function llenarManual(){
+        if(!manualSel) return;
+        getUbicaciones().sort((x,y)=>x.nombre.localeCompare(y.nombre)).forEach(u=>{
+            const o=document.createElement('option'); o.value=u.codigo; o.textContent=u.nombre; manualSel.appendChild(o);
+        });
+        manualSel.addEventListener('change',()=>{ if(manualSel.value) window.location.href=MAPA_URL+'?desde='+manualSel.value; });
+    }
+
+    async function iniciarCamara(){
+        detener();
+        setStatus('Solicitando permiso…','#f5c518');
+        setOverlay('Apunta al código QR','Mantén el código dentro del recuadro hasta detectarlo');
+        try{
+            stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:facing } }, audio:false });
+        }catch(err){ manejarErrorCamara(err); return; }
+        video.style.display=''; video.srcObject=stream; video.setAttribute('playsinline','true');
+        try{ await video.play(); }catch(e){}
+        track=stream.getVideoTracks()[0]||null;
+        actualizarTorch();
+        setStatus('Cámara activa','#28a745');
+        scanning=true; rafId=requestAnimationFrame(tick);
+    }
+    function tick(){
+        if(!scanning) return;
+        if(video.readyState===video.HAVE_ENOUGH_DATA){
+            const w=video.videoWidth, h=video.videoHeight;
+            if(w && h){
+                canvas.width=w; canvas.height=h; ctx.drawImage(video,0,0,w,h);
+                let img=null; try{ img=ctx.getImageData(0,0,w,h); }catch(e){}
+                if(img && window.jsQR){
+                    const code=jsQR(img.data,w,h,{ inversionAttempts:'dontInvert' });
+                    if(code && code.data){ onDetectado(code.data); return; }
+                }
+            }
+        }
+        rafId=requestAnimationFrame(tick);
+    }
+    function onDetectado(texto){
+        scanning=false;
+        const key=resolverKey(texto);
+        if(key && nodes[key]){
+            setStatus('¡Detectado!','#28a745');
+            setOverlay('✓ '+nodes[key].nombre,'Abriendo el mapa…');
+            guardarReciente(key); detener();
+            setTimeout(()=>{ window.location.href=MAPA_URL+'?desde='+key; }, 900);
+        }else{
+            setStatus('QR no reconocido','#dc3545');
+            setOverlay('Código no válido','Ese QR no corresponde a una ubicación del campus. Reintentando…');
+            setTimeout(()=>{ setStatus('Cámara activa','#28a745');
+                setOverlay('Apunta al código QR','Mantén el código dentro del recuadro hasta detectarlo');
+                scanning=true; rafId=requestAnimationFrame(tick); }, 1500);
+        }
+    }
+    function manejarErrorCamara(err){
+        scanning=false;
+        let msg='No se pudo abrir la cámara.';
+        if(err && (err.name==='NotAllowedError'||err.name==='SecurityError')) msg='Permiso de cámara denegado.';
+        else if(err && err.name==='NotFoundError') msg='No se detectó ninguna cámara.';
+        setStatus('Sin cámara','#dc3545');
+        setOverlay(msg,'Usa el modo manual de abajo para elegir tu ubicación.');
+        if(video) video.style.display='none';
+    }
+    function detener(){
+        scanning=false;
+        if(rafId) cancelAnimationFrame(rafId);
+        if(stream) stream.getTracks().forEach(t=>t.stop());
+        stream=null; track=null;
+    }
+    function actualizarTorch(){
+        if(!torchBtn) return;
+        const caps=(track && track.getCapabilities)? track.getCapabilities():{};
+        torchBtn.style.display=(caps && caps.torch)? '':'none';
+    }
+    if(torchBtn) torchBtn.addEventListener('click',async()=>{
+        if(!track || !track.applyConstraints) return;
+        torchOn=!torchOn;
+        try{ await track.applyConstraints({ advanced:[{ torch:torchOn }] }); }catch(e){}
+    });
+    if(switchBtn) switchBtn.addEventListener('click',()=>{
+        facing=(facing==='environment')?'user':'environment'; iniciarCamara();
+    });
+    window.addEventListener('beforeunload', detener);
+
+    // init
+    renderRecientes();
+    llenarManual();
+    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) iniciarCamara();
+    else manejarErrorCamara({ name:'NotFoundError' });
+
+})();
+</script>
 <script src="{% static 'core/js/shell.js' %}"></script>
 </body>
 </html>
