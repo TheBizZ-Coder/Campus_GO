@@ -1,4 +1,6 @@
-
+Link to visit our site, currently visible on tablets and computers:
+https://campus-go-1.onrender.com/
+We continue working.........
 
 ## 📖 Description
 
